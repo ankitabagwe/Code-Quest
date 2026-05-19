@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code Quest</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f9f8f5; color: #1a1a18; min-height: 100vh; padding: 2rem 1rem; }
+  #game { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 500; margin-bottom: 4px; }
+  .subtitle { font-size: 14px; color: #666; margin-bottom: 1.5rem; }
+  #stats { display: flex; gap: 12px; margin-bottom: 1rem; }
+  .stat-card { flex: 1; background: #fff; border: 0.5px solid #e0ded7; border-radius: 12px; padding: 10px 14px; }
+  .stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat-val { font-size: 20px; font-weight: 500; }
+  #progress-wrap { background: #e8e6e0; border-radius: 99px; height: 6px; margin-bottom: 1.25rem; overflow: hidden; }
+  #progress-bar { height: 6px; border-radius: 99px; background: #1D9E75; transition: width 0.4s; }
+  #story-box { background: #fff; border: 0.5px solid #e0ded7; border-radius: 12px; padding: 1.25rem 1.5rem; min-height: 120px; font-size: 15px; line-height: 1.7; margin-bottom: 1rem; }
+  .scene-title { font-size: 12px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .concept-badge { display: inline-block; background: #e6f1fb; color: #185fa5; font-size: 11px; font-weight: 500; padding: 2px 9px; border-radius: 8px; margin-left: 6px; }
+  pre { background: #f3f2ee; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin: 10px 0; overflow-x: auto; }
+  #code-area { margin-bottom: 1rem; }
+  #code-area label { font-size: 13px; color: #666; display: block; margin-bottom: 6px; }
+  #code-input { width: 100%; font-family: monospace; font-size: 14px; padding: 10px 12px; border-radius: 8px; border: 0.5px solid #ccc; background: #fff; color: #1a1a18; resize: none; }
+  #feedback { min-height: 36px; font-size: 14px; padding: 10px 14px; border-radius: 8px; margin-bottom: 1rem; display: none; }
+  #feedback.correct { display: block; background: #eaf3de; color: #3b6d11; border: 0.5px solid #97c459; }
+  #feedback.wrong { display: block; background: #fcebeb; color: #a32d2d; border: 0.5px solid #f09595; }
+  #feedback.hint { display: block; background: #faeeda; color: #854f0b; border: 0.5px solid #ef9f27; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .choice-btn { flex: 1; min-width: 140px; padding: 9px 14px; font-size: 14px; border-radius: 8px; border: 0.5px solid #ccc; background: #fff; color: #1a1a18; cursor: pointer; text-align: left; line-height: 1.4; }
+  .choice-btn:hover { background: #f3f2ee; }
+  .action-btn { padding: 9px 18px; font-size: 14px; border-radius: 8px; border: 0.5px solid #ccc; background: #fff; color: #1a1a18; cursor: pointer; }
+  .action-btn:hover { background: #f3f2ee; }
+  .action-btn.primary { background: #e6f1fb; color: #185fa5; border-color: #b5d4f4; }
+  #concept-log { margin-top: 1.5rem; }
+  .log-title { font-size: 13px; color: #888; margin-bottom: 6px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: 12px; padding: 3px 10px; border-radius: 8px; background: #f3f2ee; color: #888; border: 0.5px solid #e0ded7; }
+  .tag.learned { background: #eaf3de; color: #3b6d11; border-color: #97c459; }
+</style>
+</head>
+<body>
+<div id="game">
+  <h1>⚔️ Code Quest</h1>
+  <p class="subtitle">Learn coding through adventure storytelling</p>
+
+  <div id="stats">
+    <div class="stat-card"><div class="stat-label">Chapter</div><div class="stat-val" id="stat-chapter">1 / 5</div></div>
+    <div class="stat-card"><div class="stat-label">Score</div><div class="stat-val" id="stat-score">0</div></div>
+    <div class="stat-card"><div class="stat-label">Hints used</div><div class="stat-val" id="stat-hints">0</div></div>
+  </div>
+
+  <div id="progress-wrap"><div id="progress-bar" style="width:20%"></div></div>
+  <div id="story-box"></div>
+  <div id="code-area" style="display:none">
+    <label id="code-label"></label>
+    <textarea id="code-input" rows="3" spellcheck="false"></textarea>
+  </div>
+  <div id="feedback"></div>
+  <div class="btn-row" id="action-row"></div>
+
+  <div id="concept-log">
+    <div class="log-title">📚 Concepts learned</div>
+    <div class="tags">
+      <span class="tag" id="tag-variables">Variables</span>
+      <span class="tag" id="tag-conditionals">Conditionals</span>
+      <span class="tag" id="tag-loops">Loops</span>
+      <span class="tag" id="tag-functions">Functions</span>
+      <span class="tag" id="tag-arrays">Arrays</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const chapters = [
+  {
+    id:1, concept:"variables", sceneTitle:"Chapter 1 — The village of Valoria",
+    story:`You are a young apprentice mage arriving at the village of Valoria. The blacksmith, Edda, calls out:<br><br>"Traveler! I'm forging a magic sword, but I've lost track of its power level. I need you to store the number <strong>42</strong> in a magic vessel called <em>power</em> — the villagers call these 'variables.'<br><br>A variable is like a labeled box: you give it a name and put a value inside."`,
+    type:"code", codeLabel:"Write the spell to store 42 in a variable called power:",
+    placeholder:"power = 42",
+    check:(v)=>v.replace(/\s/g,"").match(/^(let|var|const)?power=42;?$/i)!==null,
+    correctMsg:"✓ The vessel glows! Edda cheers: \"Perfect! The sword's power is locked in. You understand variables!\"",
+    wrongMsg:"Not quite. Try: power = 42",
+    hint:"Type: power = 42  (name, equals sign, value)", points:10
+  },
+  {
+    id:2, concept:"conditionals", sceneTitle:"Chapter 2 — The enchanted bridge",
+    story:`You reach a bridge guarded by an ancient stone troll. A riddle is carved into the arch:<br><br><em>"Only those with power above 30 may cross."</em><br><br>Your power is <strong>42</strong>. The bridge uses a <strong>conditional</strong> — an if/else check — to decide who passes. A conditional asks a true-or-false question and takes different paths based on the answer.<br><br>Choose the correct spell to cross:`,
+    type:"choice",
+    choices:[
+      {text:"if power > 30: cross the bridge", correct:true},
+      {text:"if power < 30: cross the bridge", correct:false},
+      {text:"if power == 30: cross the bridge", correct:false},
+      {text:"cross the bridge always", correct:false}
+    ],
+    correctMsg:"✓ The troll steps aside! power (42) is greater than 30. Conditionals guide decisions!",
+    wrongMsg:"The troll blocks your path. Think: your power is 42. Which comparison would be true?",
+    points:10
+  },
+  {
+    id:3, concept:"loops", sceneTitle:"Chapter 3 — The haunted forest",
+    story:`Deep in the Whispering Forest, a curse has scattered 5 fireflies. You must call each one home by repeating an incantation.<br><br>Repeating an action a set number of times is called a <strong>loop</strong>.<br><br><pre>for i in range(5):\n    call_firefly(i)</pre><em>How many times does this loop run?</em>`,
+    type:"choice",
+    choices:[
+      {text:"1 time", correct:false},
+      {text:"4 times", correct:false},
+      {text:"5 times", correct:true},
+      {text:"Forever", correct:false}
+    ],
+    correctMsg:"✓ Five fireflies swirl around you! range(5) produces 0,1,2,3,4 — exactly 5 values.",
+    wrongMsg:"Remember: range(5) gives values 0, 1, 2, 3, 4 — count how many that is.",
+    points:10
+  },
+  {
+    id:4, concept:"functions", sceneTitle:"Chapter 4 — The wizard's tower",
+    story:`The Arch-Wizard Mira greets you at the tower top:<br><br>"Apprentice, I need a reusable spell. We call these <strong>functions</strong> — named blocks of magic you can cast again and again."<br><br><pre>def heal(target):\n    return target + 10</pre>If <strong>heal(25)</strong> is called, what value is returned?`,
+    type:"choice",
+    choices:[
+      {text:"10", correct:false},
+      {text:"25", correct:false},
+      {text:"35", correct:true},
+      {text:"heal25", correct:false}
+    ],
+    correctMsg:"✓ A golden glow fills the tower! heal(25) → 25 + 10 = 35. Functions take inputs and return outputs!",
+    wrongMsg:"Think through it: the function takes target (25) and returns target + 10.",
+    points:10
+  },
+  {
+    id:5, concept:"arrays", sceneTitle:"Chapter 5 — The dragon's hoard",
+    story:`In the final chamber, a friendly dragon named Zyx stores treasures in a magic list — what coders call an <strong>array</strong>. Each item has a position called an <strong>index</strong>, starting at 0.<br><br><pre>hoard = ["ruby", "emerald", "sapphire", "gold"]\nprint(hoard[2])</pre>Zyx challenges you: <em>"What treasure does <strong>hoard[2]</strong> reveal?"</em>`,
+    type:"choice",
+    choices:[
+      {text:"ruby", correct:false},
+      {text:"emerald", correct:false},
+      {text:"sapphire", correct:true},
+      {text:"gold", correct:false}
+    ],
+    correctMsg:"✓ \"Sapphire!\" Zyx roars with delight. Index 0=ruby, 1=emerald, 2=sapphire. Arrays start at zero!",
+    wrongMsg:"Remember: arrays start at index 0. Count: 0=ruby, 1=emerald, 2=?",
+    points:10
+  }
+];
+
+let current=0, score=0, hints=0, answered=false;
+const storyBox=document.getElementById("story-box");
+const codeArea=document.getElementById("code-area");
+const codeInput=document.getElementById("code-input");
+const codeLabel=document.getElementById("code-label");
+const feedback=document.getElementById("feedback");
+const actionRow=document.getElementById("action-row");
+
+function setFeedback(msg,type){feedback.innerHTML=msg;feedback.className=type;}
+function clearFeedback(){feedback.className="";feedback.innerHTML="";}
+function markLearned(c){const el=document.getElementById("tag-"+c);if(el)el.className="tag learned";}
+
+function renderChapter(){
+  if(current>=chapters.length){showEnd();return;}
+  answered=false; clearFeedback();
+  const ch=chapters[current];
+  document.getElementById("stat-chapter").textContent=(current+1)+" / "+chapters.length;
+  document.getElementById("progress-bar").style.width=((current+1)/chapters.length*100)+"%";
+  storyBox.innerHTML=`<div class="scene-title">${ch.sceneTitle}<span class="concept-badge">${ch.concept}</span></div><p>${ch.story}</p>`;
+  actionRow.innerHTML=""; codeArea.style.display="none";
+
+  if(ch.type==="code"){
+    codeArea.style.display="block";
+    codeLabel.textContent=ch.codeLabel;
+    codeInput.value=""; codeInput.placeholder=ch.placeholder;
+    const sb=document.createElement("button"); sb.className="action-btn primary"; sb.textContent="Cast the spell →";
+    sb.onclick=()=>{
+      if(answered)return;
+      if(ch.check(codeInput.value.trim())){
+        answered=true; score+=ch.points; document.getElementById("stat-score").textContent=score;
+        markLearned(ch.concept); setFeedback(ch.correctMsg,"correct"); renderNext();
+      } else { setFeedback(ch.wrongMsg,"wrong"); }
+    };
+    const hb=document.createElement("button"); hb.className="action-btn"; hb.textContent="Need a hint";
+    hb.onclick=()=>{hints++;document.getElementById("stat-hints").textContent=hints;setFeedback("💡 "+ch.hint,"hint");};
+    actionRow.appendChild(sb); actionRow.appendChild(hb);
+  } else {
+    ch.choices.forEach(c=>{
+      const btn=document.createElement("button"); btn.className="choice-btn"; btn.textContent=c.text;
+      btn.onclick=()=>{
+        if(answered)return;
+        if(c.correct){
+          answered=true; score+=ch.points; document.getElementById("stat-score").textContent=score;
+          markLearned(ch.concept); setFeedback(ch.correctMsg,"correct");
+          btn.style.background="#eaf3de"; btn.style.borderColor="#97c459"; btn.style.color="#3b6d11";
+          renderNext();
+        } else { setFeedback(ch.wrongMsg,"wrong"); btn.style.background="#fcebeb"; btn.style.borderColor="#f09595"; }
+      };
+      actionRow.appendChild(btn);
+    });
+  }
+}
+
+function renderNext(){
+  setTimeout(()=>{
+    current++;
+    actionRow.innerHTML="";
+    const lbl=current<chapters.length?"Continue the journey →":"See your results ✓";
+    const nb=document.createElement("button"); nb.className="action-btn"+(current>=chapters.length?" primary":"");
+    nb.textContent=lbl; nb.onclick=()=>{clearFeedback();renderChapter();};
+    actionRow.appendChild(nb);
+  },700);
+}
+
+function showEnd(){
+  storyBox.innerHTML=`<div class="scene-title">Quest complete! 🎉</div>
+    <p style="margin-bottom:10px">You've restored peace to Valoria. You've mastered the five pillars of coding:</p>
+    <ul style="padding-left:1.2em;line-height:2.1">
+      <li><strong>Variables</strong> — storing values in named containers</li>
+      <li><strong>Conditionals</strong> — making decisions with if/else</li>
+      <li><strong>Loops</strong> — repeating actions efficiently</li>
+      <li><strong>Functions</strong> — reusable, named blocks of logic</li>
+      <li><strong>Arrays</strong> — ordered lists with index access</li>
+    </ul>
+    <p style="margin-top:10px;color:#666;font-size:14px">Final score: <strong>${score} pts</strong> · Hints used: <strong>${hints}</strong></p>`;
+  codeArea.style.display="none"; clearFeedback();
+  document.getElementById("progress-bar").style.width="100%";
+  actionRow.innerHTML="";
+  const rb=document.createElement("button"); rb.className="action-btn"; rb.textContent="Play again";
+  rb.onclick=()=>{current=0;score=0;hints=0;document.getElementById("stat-score").textContent=0;document.getElementById("stat-hints").textContent=0;document.querySelectorAll(".tag").forEach(t=>t.className="tag");renderChapter();};
+  actionRow.appendChild(rb);
+}
+
+renderChapter();
+</script>
+</body>
+</html>
